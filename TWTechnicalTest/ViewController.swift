@@ -18,21 +18,18 @@ class ViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         setupTableView()
-        setupNavigationItems()
-        jokesService.delegate = self
+        loadJokes()
     }
     
     //MARK: - API
     @objc func loadJokes() {
-        jokesService.fetchJoke()
+        jokesService.fetchJokes(jokeCompletion: { self.jokes[$0.id] = $0 }) {
+            self.tableView.reloadData()
+        }
     }
     
     
     //MARK: - Helper Functions
-    func setupNavigationItems() {
-        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Load", style: .plain, target: self, action: #selector(loadJokes))
-    }
-    
     func setupTableView() {
         tableView.register(JokeCell.self, forCellReuseIdentifier: JokeCell.reuseIdentifier)
         tableView.rowHeight = 200
@@ -55,22 +52,5 @@ extension ViewController {
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         return jokes.count
-    }
-}
-
-//MARK: - JokeService Delegate Methods
-extension ViewController: JokesServiceDelegate {
-    func didFindJoke(joke: Joke) {
-        DispatchQueue.main.async {
-            self.jokes[joke.id] = joke
-            self.tableView.reloadData()
-            if self.jokes.count < 15 {
-                self.jokesService.fetchJoke()
-            }
-        }
-    }
-    
-    func didFail(with error: Error) {
-        print("Failed to fetch joke: \(error)")
     }
 }

@@ -17,25 +17,37 @@ struct JokesService {
     var delegate: JokesServiceDelegate?
     let apiUrl = "https://api.chucknorris.io/jokes/random"
     
-    
-    
-    func fetchJoke() {
+    func fetchJokes(jokeCompletion: @escaping (Joke) -> (), groupCompletion: @escaping () -> ()) {
         guard let url = URL(string: apiUrl) else { return }
-        performRequest(with: url)
+        let group = DispatchGroup()
+        
+        // This could result in 14 or less results if we receive the same item
+        for _ in 0 ..< 15 {
+            group.enter()
+            performRequest(with: url, in: group, jokeCompletion)
+        }
+        
+        group.notify(queue: .main, execute: groupCompletion)
     }
     
-    func performRequest(with url: URL) {
-        URLSession.shared.dataTask(with: url) { data, response, error in
+    func performRequest(with url: URL, in group: DispatchGroup, _ jokeCompletion: @escaping (Joke) -> ()) {
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
+            defer {
+                group.leave()
+            }
+            
             if let error = error {
-                delegate?.didFail(with: error)
+                print("Fetching joke failed with error: \(error)")
+                return
             }
             
             if let safeData = data {
                 if let joke = parseJSON(with: safeData) {
-                    delegate?.didFindJoke(joke: joke)
+                    jokeCompletion(joke)
                 }
             }
-        }.resume()
+        }
+        task.resume()
     }
     
     func parseJSON(with data: Data) -> Joke? {
@@ -48,7 +60,5 @@ struct JokesService {
             print("Error decoding data \(error)")
             return nil
         }
-
     }
-    
 }
